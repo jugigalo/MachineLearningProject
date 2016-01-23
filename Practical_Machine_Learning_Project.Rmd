@@ -1,0 +1,135 @@
+---
+title: "Practical Machine Learning Project"
+output: html_document
+---
+
+Project of Practical Machine Learning Class: HAR Prediction 
+Author: Juan G. García
+=====================================================================
+
+### Introduction and Pre-processing
+
+In this document a HAR (Human Activity Recognition) Prediction is presented by building a prediction model in R and doing cross validation to calculate expected error. The data used is based on the source http://groupware.les.inf.puc-rio.br/har.
+
+We have loaded the data in two datasets: training and testing. These files have been downloaded from:
+
+Training:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+Testing:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+And they have been loaded in R by using this code:
+
+```{r, message=F, warning=F}
+training = read.csv("D:/Data Science Specialization/8_Practical_Machine_Learning/Week_4/Project/pml-training.csv")
+testing = read.csv("D:/Data Science Specialization/8_Practical_Machine_Learning/Week_4/Project/pml-testing.csv")
+
+```
+
+Please be aware that to reproduce the R code above, you should change the local directory where you put the files.
+
+
+### Model
+
+The model built in this exercise is based on random forest technique and the R package "caret".
+
+Before de model is built, first we process de training dataset to split again in train and test data to do cross validation and explore some variables from the test resulting dataset:
+
+```{r, message=F, warning=F}
+library(caret);
+inTrain <- createDataPartition(
+              y = training$classe,
+              p = 0.75, list = FALSE)
+train <- training[inTrain,]
+test <- training[-inTrain,]
+
+set.seed(33232)
+
+featurePlot(x = train[, c("roll_belt", "pitch_belt", "yaw_belt", "total_accel_belt")],
+              y = train$classe,
+              plot = "pairs")
+
+qplot(total_accel_belt, yaw_belt, colour = classe, data = train)
+
+p1 <- qplot(classe, yaw_belt, data = train, fill = classe,
+            geom = c("boxplot"))
+p1
+
+p2 <- qplot(classe, yaw_belt, data = train, fill = classe,
+            geom = c("boxplot", "jitter"))
+p2
+
+
+```
+
+Then, we built a model by using caret package "train" function and Random Forest technique (rf):
+
+
+```{r, message=F, warning=F}
+ModFit <- train(classe ~ yaw_belt, method = "rf", data = train);
+pred <- predict(ModFit, test);
+Accu <- ModFit$results$Accuracy
+ModFit
+```
+
+
+The same way, we build a lda prediction model:
+
+```{r, message=F, warning=F}
+ModFit2 <- train(classe ~ yaw_belt, method = "lda", data = train);
+pred2 <- predict(ModFit2, test);
+Accu2 <- ModFit2$results$Accuracy
+ModFit2
+```
+
+
+### Cross Validation
+
+We do cross validation by following the next approach in order to pick the prediction function to use:
+
+1. Use the training set.
+2. Split into training/test sets (done in above section).
+3. Build a model on the training set (done in above section).
+4. Evaluate on the test set.
+5. Repeat and average the estimated errors.
+
+Based on this, we repeat and average the estimated errors by taking into account the accuracy of the models when spliting data again:
+
+```{r, message=F, warning=F}
+
+inTrain <- createDataPartition(
+              y = training$classe,
+              p = 0.75, list = FALSE)
+train <- training[inTrain,]
+test <- training[-inTrain,]
+
+set.seed(33234)
+
+ModFitA <- train(classe ~ yaw_belt, method = "rf", data = train);
+predA <- predict(ModFitA, test);
+AccuA <- ModFitA$results$Accuracy;
+
+AccuTot <- (Accu + AccuA)/2;
+
+
+ModFit2A <- train(classe ~ yaw_belt, method = "lda", data = train);
+pred2A <- predict(ModFit2A, test);
+Accu2A <- ModFit2A$results$Accuracy;
+
+AccuTot2 <- (Accu2 + Accu2A)/2;
+
+AccuTot
+AccuTot2
+
+```
+
+
+### Expected Error
+
+AccuTot and AccuTot2 represent the accuracy for Random Forest and LDA models respectively. Therefore, these should be the expected values of errors for the models and based on the results obtained above, the Random Forest model has a better performance to predict Classe variable.  
+
+
+### Conclusions
+
+The plots shown in the Model section show as the behavior of yaw_belt variable by having into account the Classes A, B, C, D and E. In this manner, the scatter plot matrix tells as somehow that the yaw_belt variable is more adecuate than other considered variables. Finally, we by found by cross validation and comparing that Random Forest model is better than LDA in this predicting case.
